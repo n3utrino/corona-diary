@@ -1,0 +1,9 @@
+= Corona Sources
+
+== Times
+Incubation 5.1 days (95% CI, 4.5 to 5.8 days)
+Symptoms 11.5 days (97.5% CI, 8.2 to 15.6 days)
+https://www.acpjournals.org/doi/full/10.7326/M20-0504
+
+
+
