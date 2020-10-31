@@ -1,8 +1,13 @@
 package ch.n3utrino.coronadiary
 
+import ch.n3utrino.coronadiary.api.Day
+import ch.n3utrino.coronadiary.api.Event
+import ch.n3utrino.coronadiary.api.Metric
+import ch.n3utrino.coronadiary.api.Timeline
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication
 import org.springframework.format.annotation.DateTimeFormat
+import org.springframework.web.bind.annotation.CrossOrigin
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RestController
@@ -17,27 +22,21 @@ fun main(args: Array<String>) {
     runApplication<CoronaDiaryApplication>(*args)
 }
 
+typealias EventMap = MutableMap<LocalDate, MutableList<Event>>
+typealias MetricMap = MutableMap<LocalDate, MutableList<Metric>>
 
-data class Timeline(val days: List<Day> = emptyList(), val url: String)
-data class Day(val date: LocalDate, val notes: List<Note> = emptyList()) : Comparable<Day> {
-    override fun compareTo(other: Day) = date.compareTo(other.date)
-
-}
-
-data class Note(val title: String)
-
-typealias NoteMap = Map<LocalDate, MutableList<Note>>
-
+@CrossOrigin
 @RestController
 class TimelineResource(val timelineRepository: TimelineRepository) {
     @GetMapping("/timeline")
     fun getTimeline(
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
-            contactDate: LocalDate?,
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
-            symptomDate: LocalDate?,
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
-            testDate: LocalDate?): Timeline {
+        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+        contactDate: LocalDate?,
+        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+        symptomDate: LocalDate?,
+        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+        testDate: LocalDate?
+    ): Timeline {
 
 
         val days = buildDays(contactDate, symptomDate, testDate)
@@ -47,23 +46,26 @@ class TimelineResource(val timelineRepository: TimelineRepository) {
 
         timelineRepository.save(TimelineDbo(timelineId, contactDate, symptomDate, testDate))
 
-        return Timeline(days = days.sorted(), url = "/timeline/$timelineId");
+        return Timeline(days = days.toTypedArray(), url = "/timeline/$timelineId");
     }
 
-    private fun buildDays(contactDate: LocalDate?, symptomDate: LocalDate?, testDate: LocalDate?): MutableList<Day> {
+    private fun buildDays(contactDate: LocalDate?, symptomDate: LocalDate?, testDate: LocalDate?): List<Day> {
         val days = mutableListOf<Day>()
 
-        var noteMap: NoteMap = mapOf()
+        var eventMap: EventMap = mutableMapOf()
+        var metricMap: MetricMap = mutableMapOf()
 
-        contactDate?.let { noteMap = contactDay(contactDate, noteMap) }
-        symptomDate?.let { noteMap = symptomtDay(symptomDate, noteMap) }
-        testDate?.let { noteMap = testDay(testDate, noteMap) }
+        contactDate?.let {
+            eventMap = contactEvents(contactDate, eventMap)
+        }
+        symptomDate?.let { eventMap = symptomDay(symptomDate, eventMap) }
+        testDate?.let { eventMap = testDay(testDate, eventMap) }
 
-        for ((date, notes) in noteMap) {
-            days.add(Day(date, notes))
+        for ((date, notes) in eventMap) {
+            days.add(Day(date, notes.toTypedArray(), emptyArray()))
         }
 
-        return days
+        return days.sorted()
     }
 
     @GetMapping("/timeline/{timelineId}")
@@ -71,25 +73,40 @@ class TimelineResource(val timelineRepository: TimelineRepository) {
 
         val dbo = timelineRepository.findById(timelineId).get()
         val days = buildDays(dbo.contactDate, dbo.symptomDate, dbo.testDate)
-        return Timeline(days, "timeline/${dbo.id}")
+        return Timeline(days.toTypedArray(), "timeline/${dbo.id}")
 
     }
 
 
-    private fun contactDay(date: LocalDate, noteMap: NoteMap): NoteMap = appendNote(date, Note("Contact Day"), noteMap)
-    private fun symptomtDay(date: LocalDate, noteMap: NoteMap): NoteMap = appendNote(date, Note("Symptom Day"), noteMap)
-    private fun testDay(date: LocalDate, noteMap: NoteMap): NoteMap {
-        return appendNote(date, Note("Test Day"), noteMap)
+    private fun contactEvents(date: LocalDate, eventMap: EventMap): EventMap {
+        eventMap.appendEvent(date, Event("Contact Day"))
+        eventMap.appendEvent(date, Event("Quarantaine Start"))
+        eventMap.appendEvent(date.plusDays(10L), Event("Quarantaine End"))
+        return eventMap
     }
 
-    private fun appendNote(date: LocalDate, note: Note, noteMap: NoteMap): NoteMap {
-        val newMap = noteMap.toMutableMap()
-        val noteList: MutableList<Note> = newMap.getOrDefault(date, mutableListOf())
-        noteList.add(note)
-        newMap[date] = noteList
-        return newMap.toMap();
+    private fun symptomDay(date: LocalDate, eventMap: EventMap): EventMap {
+        eventMap.appendEvent(date, Event("First Symptom Day"))
+        eventMap.appendEvent(date, Event("Quarantaine Start"))
+        return eventMap.appendEvent(date.plusDays(10L), Event("Quarantaine End"))
+    }
+
+    private fun testDay(date: LocalDate, eventMap: EventMap): EventMap {
+        return eventMap.appendEvent(date, Event("Positive Test Day"))
+    }
+
+    private fun EventMap.appendEvent(date: LocalDate, event: Event): EventMap {
+        val eventList: MutableList<Event> = this.getOrDefault(date, mutableListOf())
+        eventList.add(event)
+        this[date] = eventList
+        return this
+    }
+
+    private fun MetricMap.appendMetric(date: LocalDate, event: Metric): MetricMap {
+        val eventList: MutableList<Metric> = this.getOrDefault(date, mutableListOf())
+        eventList.add(event)
+        this[date] = eventList
+        return this
     }
 
 }
-
-
