@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Corona Diary</title>
+    <link href="https://unpkg.com/tailwindcss@^1.0/dist/tailwind.min.css" rel="stylesheet">
+    <link th:href="@{/timeline.css}" rel="stylesheet"/>
+</head>
+<body>
+<header class="container mx-auto"><h1 class="text-4xl">Corona Quarantäne Timeline</h1></header>
+
+<main class="timeline">
+    <ol class="timeline__days">
+        <li th:each="day,iter: ${timeline.days}" class="timeline__day-item"
+            th:classappend="${iter.index==dayIndex?'timeline__day-item--selected':''}">
+            <div class="timeline__day">
+                <aside class="timespan"
+                       th:style="'opacity:'+${day.contagious}"
+                       th:classappend="(${day.contagious} &gt; 0)?'timespan--c':''"
+                ></aside>
+                <aside class="timespan" th:classappend="${day.getQuarantine()?'timespan--q':''}"></aside>
+                <a class="timeline__day-label" th:text="${day.date}" th:href="@{${iter.index}}">25.10.2020</a>
+            </div>
+        </li>
+    </ol>
+    <div th:if="${selectedDay != null}" class="timeline-detail">
+        <p th:text="${selectedDay.date}">27.10.2020</p>
+        <details>
+            <summary>Ereignisse</summary>
+            <dl>
+                <th:block th:each="event : ${selectedDay.events}">
+                    <dt th:text="${event.title}">Some Event</dt>
+                    <dd th:text="''">Blabla</dd>
+                </th:block>
+            </dl>
+        </details>
+    </div>
+</main>
+</body>
+</html>

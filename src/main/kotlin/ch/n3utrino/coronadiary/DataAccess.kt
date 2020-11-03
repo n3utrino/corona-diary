@@ -33,7 +33,14 @@ internal class RedisConfig {
 }
 
 @RedisHash("timeline")
-data class TimelineDbo(@Id val id: String, val contactDate: LocalDate?, val symptomDate: LocalDate?, val testDate: LocalDate?)
+data class TimelineDbo(
+    @Id val id: String,
+    val contactDate: LocalDate?,
+    val symptomDate: LocalDate?,
+    val testDate: LocalDate?,
+    val userAgent: String,
+    val ip: String,
+)
 
 @Repository
 interface TimelineRepository : CrudRepository<TimelineDbo?, String?>

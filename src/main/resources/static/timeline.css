@@ -1,0 +1,48 @@
+.timeline-detail {
+    padding: 1rem;
+    padding-top: 0;
+    padding-bottom: 0;
+    background-color: lightgray;
+}
+
+.timespan {
+    min-height: 2rem;
+    min-width: 2rem;
+    margin-left: 0.5rem;
+}
+.timespan--q {
+    background: red;
+}
+.timespan--c {
+    background: orange;
+}
+.timespan--start {
+    border-radius: 50%;
+}
+
+.timeline {
+    display: flex;
+    margin-left: auto;
+    padding: 1rem;
+}
+.timeline ol {
+    list-style: none;
+    padding-left: 0;
+    margin: 0;
+}
+.timeline__day-item {
+    border-bottom: 3px solid lightgray;
+}
+.timeline__day-item--selected {
+    background-color: lightgray;
+}
+.timeline__day-item:first-of-type {
+    border-top: 3px solid lightgray;
+}
+.timeline__day {
+    display: flex;
+}
+.timeline__day-label {
+    margin: 1rem;
+    align-self: center;
+}

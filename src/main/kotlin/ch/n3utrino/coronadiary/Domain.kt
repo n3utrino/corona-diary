@@ -3,64 +3,88 @@ package ch.n3utrino.coronadiary
 import ch.n3utrino.coronadiary.api.Day
 import ch.n3utrino.coronadiary.api.Event
 import ch.n3utrino.coronadiary.api.Metric
+import ch.n3utrino.coronadiary.api.MetricType
 import org.springframework.stereotype.Service
 import java.time.LocalDate
 
 
-private typealias EventMap = MutableMap<LocalDate, MutableList<Event>>
-private typealias MetricMap = MutableMap<LocalDate, MutableList<Metric>>
+private typealias TimelineDayMap = MutableMap<LocalDate, TimelineDay>
+
+private data class TimelineDay(
+    val events: MutableList<Event> = mutableListOf(),
+    val metrics: MutableList<Metric> = mutableListOf()
+)
 
 @Service
 class QuarantineService {
 
-    private fun testDay(date: LocalDate, eventMap: EventMap): EventMap {
-        return eventMap.appendEvent(date, Event("Positive Test Day"))
+    private fun testDay(date: LocalDate, timelineDayMap: TimelineDayMap): TimelineDayMap {
+        return timelineDayMap.appendEvent(date, Event("Positive Test Day"))
     }
 
-    private fun EventMap.appendEvent(date: LocalDate, event: Event): EventMap {
-        val eventList: MutableList<Event> = this.getOrDefault(date, mutableListOf())
+    private fun TimelineDayMap.appendEvent(date: LocalDate, event: Event): TimelineDayMap {
+        val timelineMaps = this.getOrDefault(date, TimelineDay())
+        val eventList = timelineMaps.events
         eventList.add(event)
-        this[date] = eventList
+        this[date] = timelineMaps
         return this
     }
 
-    private fun MetricMap.appendMetric(date: LocalDate, event: Metric): MetricMap {
-        val eventList: MutableList<Metric> = this.getOrDefault(date, mutableListOf())
-        eventList.add(event)
-        this[date] = eventList
+    private fun TimelineDayMap.appendMetric(date: LocalDate, metric: Metric): TimelineDayMap {
+        val timelineMaps = this.getOrDefault(date, TimelineDay())
+        val eventList = timelineMaps.metrics
+        eventList.add(metric)
+        this[date] = timelineMaps
         return this
     }
 
     fun buildDays(contactDate: LocalDate?, symptomDate: LocalDate?, testDate: LocalDate?): List<Day> {
         val days = mutableListOf<Day>()
 
-        var eventMap: EventMap = mutableMapOf()
-        var metricMap: MetricMap = mutableMapOf()
+        var timelineDayMap: TimelineDayMap = mutableMapOf()
 
         contactDate?.let {
-            eventMap = contactEvents(contactDate, eventMap)
+            timelineDayMap = contactEvents(contactDate, timelineDayMap)
         }
-        symptomDate?.let { eventMap = symptomDay(symptomDate, eventMap) }
-        testDate?.let { eventMap = testDay(testDate, eventMap) }
+        symptomDate?.let { timelineDayMap = symptomDay(symptomDate, timelineDayMap) }
+        testDate?.let { timelineDayMap = testDay(testDate, timelineDayMap) }
 
-        for ((date, notes) in eventMap) {
-            days.add(Day(date, notes.toTypedArray(), emptyArray()))
+        for ((date, timelineDay) in timelineDayMap) {
+            days.add(Day(date, timelineDay.events.toTypedArray(), timelineDay.metrics.toTypedArray()))
         }
 
         return days.sorted()
     }
 
-    private fun contactEvents(date: LocalDate, eventMap: EventMap): EventMap {
-        eventMap.appendEvent(date, Event("Contact Day"))
-        eventMap.appendEvent(date, Event("Quarantaine Start"))
-        eventMap.appendEvent(date.plusDays(10L), Event("Quarantaine End"))
-        return eventMap
+    private fun contactEvents(date: LocalDate, maps: TimelineDayMap): TimelineDayMap {
+        maps.appendEvent(date, Event("Contact Day"))
+        maps.appendEvent(date.plusDays(5L), Event("Best Test Day"))
+        appendQuarantine(maps, date, 10)
+        return maps
     }
 
-    private fun symptomDay(date: LocalDate, eventMap: EventMap): EventMap {
-        eventMap.appendEvent(date, Event("First Symptom Day"))
-        eventMap.appendEvent(date, Event("Quarantaine Start"))
-        return eventMap.appendEvent(date.plusDays(10L), Event("Quarantaine End"))
+    private fun appendQuarantine(maps: TimelineDayMap, date: LocalDate, forDays: Int) {
+        maps.appendEvent(date, Event("Quarantine Start"))
+        repeat(forDays) {
+            val nextDate = date.plusDays(it.toLong())
+            maps.appendMetric(nextDate, Metric(1.0, MetricType.QUARANTINE))
+        }
+        maps.appendEvent(date.plusDays(forDays.toLong() + 1), Event("Quarantine End"))
+    }
+
+    private fun appendContagiousness(maps: TimelineDayMap, date: LocalDate, forDays: Int) {
+        repeat(forDays) {
+            val nextDate = date.plusDays(it.toLong())
+            maps.appendMetric(nextDate, Metric(1.0.minus(it.div(20.0)), MetricType.CONTAGIOUS))
+        }
+    }
+
+    private fun symptomDay(date: LocalDate, timelineDayMap: TimelineDayMap): TimelineDayMap {
+        timelineDayMap.appendEvent(date, Event("First Symptom Day"))
+        appendQuarantine(timelineDayMap, date, 10)
+        appendContagiousness(timelineDayMap, date.minusDays(2), 2)
+        appendContagiousness(timelineDayMap, date, 14)
+        return timelineDayMap
     }
 
 }

@@ -6,6 +6,8 @@ import kotlin.js.JsExport
 expect class Day {
     val events: Array<Event>
     val metrics: Array<Metric>
+    val quarantine: Boolean
+    val contagious: Double
 }
 
 @JsExport
@@ -19,5 +21,5 @@ data class Event(val title: String)
 data class Metric(val value: Double, val type: MetricType)
 
 enum class MetricType {
-    INCUBATION, CONTAGIOUS
+    INCUBATION, CONTAGIOUS, QUARANTINE
 }
